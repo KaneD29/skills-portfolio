@@ -86,3 +86,8 @@ The script follows a modular design pattern separating fetching, parsing, and pi
 
 ## AI Usage Disclaimer
 Used Gemini for Code Debugging and Grammar checking for README. [https://gemini.google.com]
+
+### Key Changes Made:
+- **Dependencies**: Updated `requests` to `aiohttp` and added `lxml`.
+- **Key Features**: Highlighted async capabilities, non-blocking requests, and concurrency management (`asyncio.Semaphore`).
+- **Code Architecture**: Updated function list to include `run_scraper_async` and `fetch_and_parse_page`, reflecting the new parameters and async design pattern.

@@ -1,12 +1,14 @@
-import time
+import asyncio
 import re
+import time
 from urllib.parse import urljoin
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
 import pandas as pd
 
 # Base URL for the e-commerce store
 START_URL = "http://books.toscrape.com/catalogue/page-1.html"
+BASE_CATALOGUE_URL = "http://books.toscrape.com/catalogue/"
 
 # Custom HTTP Headers (This is to prevent 403 Forbidden errors)
 HEADERS = {
@@ -23,19 +25,21 @@ RATING_MAP = {
     "Five": 5
 }
 
-def fetch_page_html(url):
+async def fetch_page_html(session, url, semaphore):
     """Downloads HTML content safely using the requests library."""
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        response.raise_for_status()  # Raises error for 4xx or 5xx status codes
-        return response.text
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] Failed to fetch {url}: {e}")
-        return None
+    async with semaphore:
+        try:
+            async with session.get(url, headers=HEADERS, timeout=10) as response:
+                if response.status != 200:
+                    return None
+                return await response.text()
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch {url}: {e}")
+            return None
 
 def parse_product_data(html_content):
     """Extracts product details and next page link from HTML using BeautifulSoup."""
-    soup = BeautifulSoup(html_content, "html.parser")
+    soup = BeautifulSoup(html_content, "lxml")
     products = []
     
     # Locate all individual product cards on the page
@@ -76,34 +80,28 @@ def parse_product_data(html_content):
     next_button = soup.find("li", class_="next")
     return products, next_button
 
-def run_scraper(max_pages=3):
+async def fetch_and_parse_page(session, url, semaphore):
+    html = await fetch_page_html(session, url, semaphore)
+    if not html:
+        return []
+    page_products, _ = parse_product_data(html)
+    return page_products
+
+async def run_scraper_async(max_pages=50, max_concurrent=10):
     """Orchestrates pagination, scraping, and data pipeline processing."""
-    current_url = START_URL
-    all_products = []
-    page_count = 1
+    start_time = time.perf_counter()
 
     print("--- Starting Competitor Price Scraper ---")
 
-    while current_url and page_count <= max_pages:
-        print(f"[INFO] Scraping Page {page_count}: {current_url}")
-        
-        html = fetch_page_html(current_url)
-        if not html:
-            break
-            
-        page_products, next_button = parse_product_data(html)
-        all_products.extend(page_products)
-        
-        # Handle Pagination: Look for the 'next' button link
-        if next_button and next_button.find("a"):
-            next_page_rel = next_button.find("a")["href"]
-            current_url = urljoin(current_url, next_page_rel)
-            page_count += 1
-            
-            # Polite scraping delay to avoid hitting server limits
-            time.sleep(1)
-        else:
-            current_url = None
+    # Generate page URLs directly since the structure is predictable
+    urls = [f"{BASE_CATALOGUE_URL}page-{i}.html" for i in range(1, max_pages + 1)]
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_and_parse_page(session, url, semaphore) for url in urls]
+        results = await asyncio.gather(*tasks)
+
+    all_products = [product for page in results for product in page]
 
     if not all_products:
         print("[WARNING] No product data collected. Exiting.")
@@ -139,8 +137,14 @@ def run_scraper(max_pages=3):
     summary_df["average_price_gbp"] = summary_df["average_price_gbp"].round(2)
     summary_df.to_csv("sample_price_summary.csv", index=False, encoding="utf-8")
 
+    end_time = time.perf_counter()
+    total_duration = end_time - start_time
     print(f"--- Finished Successfully! Exported 5 sample files across CSV, JSON, and XLSX formats ---")
+    print(f"Total Execution Time: {total_duration:.2f} seconds ({total_duration/60:.2f} minutes)")
+
+def run_scraper(max_pages=50):
+    asyncio.run(run_scraper_async(max_pages=max_pages))
 
 if __name__ == "__main__":
-    # Run scraper for first 3 pages as a proof-of-concept
-    run_scraper(max_pages=3)
+    # Run scraper 50 pages as a proof-of-concept
+    run_scraper(max_pages=50)
