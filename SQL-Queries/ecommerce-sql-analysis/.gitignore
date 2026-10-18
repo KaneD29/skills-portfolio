@@ -1,0 +1,23 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# VS Code Metadata & Settings
+.vscode/
+*.code-workspace
+
+# SQL Server & Database Temporary Files
+*.mdf
+*.ldf
+*.bak
+*.tmp
+*.log
+
+# Windows Temporary Files
+~$*.xlsx
+~$*.docx
+
+# Ignore dataset CSV files
+Data/*.csv
+*.csv
