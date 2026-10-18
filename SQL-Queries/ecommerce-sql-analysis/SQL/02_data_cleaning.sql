@@ -44,6 +44,13 @@ SELECT
     SUM(CASE WHEN Profit IS NULL THEN 1 ELSE 0 END) AS Null_Profit
 FROM dbo.Global_Superstore2;
 GO
+    
+-- Remove stray CSV header rows imported as data
+DELETE FROM dbo.Global_Superstore2
+WHERE Order_ID = 'Order ID' 
+   OR Ship_Mode = 'Ship Mode'
+   OR Customer_ID = 'Customer ID';
+GO
 
 
 -- -------------------------------------------------------------------------------
