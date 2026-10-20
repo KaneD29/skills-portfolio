@@ -80,3 +80,7 @@ The repository is modularized into structured, executable SQL scripts engineered
 2. Open SSMS and connect to your SQL Server instance.
 3. Ensure the target database exists ([Project-Superstore]) and contains the base table dbo.Global_Superstore2.
 4. Run scripts sequentially from SQL/01_schema_and_import.sql through SQL/05_customer_segmentation.sql.
+
+## AI Use Disclaimer
+Gemini: gemini.google.com
+Code and README validation
